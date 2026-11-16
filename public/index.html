@@ -1,3 +1,4 @@
+
 <!doctype html>
 <html lang="es">
 <head>
@@ -176,93 +177,51 @@ button:focus-visible,input:focus-visible{
 
 <body>
 
-<!-- MENÚ PRINCIPAL -->
 <div id="menu">
   <div class="card">
 
     <h1>TROPIEZOS EXTREMOS</h1>
 
     <div id="auth">
-
-      <input id="em" type="email"
-        placeholder="Correo"
-        autocomplete="email">
-
-      <input id="pw" type="password"
-        placeholder="Contraseña (mín. 6)"
-        autocomplete="current-password">
-
-      <input id="un"
-        placeholder="Nombre de usuario (al registrarte)"
-        maxlength="16">
+      <input id="em" type="email" placeholder="Correo" autocomplete="email">
+      <input id="pw" type="password" placeholder="Contraseña (mín. 6)" autocomplete="current-password">
+      <input id="un" placeholder="Nombre de usuario (al registrarte)" maxlength="16">
 
       <button class="p" id="bin">ENTRAR</button>
       <button id="bre">REGISTRARME</button>
       <button id="bgu" hidden>JUGAR DE INVITADO</button>
-
     </div>
 
     <div id="home" hidden>
-
       <div id="stats"></div>
-
       <h1 style="font-size:28px">¡A JUGAR!</h1>
 
-      <button class="p" id="createRoom">
-        🏠 CREAR SALA
-      </button>
+      <button class="p" id="createRoom">🏠 CREAR SALA</button>
 
-      <input
-        id="roomCode"
-        placeholder="ESCRIBE EL CÓDIGO"
-        maxlength="6"
-        style="text-transform:uppercase">
+      <input id="roomCode" placeholder="ESCRIBE EL CÓDIGO" maxlength="6" style="text-transform:uppercase">
 
-      <button id="joinRoom">
-        🔑 UNIRSE A SALA
-      </button>
-
-      <button id="out">
-        CERRAR SESIÓN
-      </button>
-
+      <button id="joinRoom">🔑 UNIRSE A SALA</button>
+      <button id="out">CERRAR SESIÓN</button>
     </div>
 
     <div id="msg"></div>
-
   </div>
 </div>
 
-<!-- SALA DE ESPERA -->
 <div id="roomPanel">
   <div class="card">
-
     <h1>SALA DE JUEGO</h1>
-
     <p>Comparte este código con tus amigos:</p>
-
     <h1 id="roomCodeDisplay">------</h1>
-
     <p id="roomCount">Jugadores: 1/10</p>
-
-    <p id="roomMessage">
-      Esperando jugadores...
-    </p>
-
-    <button class="p" id="startMatch">
-      ▶ INICIAR PARTIDA
-    </button>
-
-    <button id="leaveRoom">
-      SALIR DE LA SALA
-    </button>
-
+    <p id="roomMessage">Esperando jugadores...</p>
+    <button class="p" id="startMatch">▶ INICIAR PARTIDA</button>
+    <button id="leaveRoom">SALIR DE LA SALA</button>
   </div>
 </div>
 
 <div id="hud"></div>
 
-<!-- RESULTADOS -->
 <div id="res">
   <div class="card">
     <h1>RESULTADOS</h1>
@@ -317,7 +276,6 @@ async function home(){
   if(!on)return;
 
   if(session){
-
     const {data} = await sb
       .from('profiles')
       .select('username,coins,crowns,wins,level')
@@ -328,15 +286,14 @@ async function home(){
       $('#stats').textContent =
         `${data.username} · Nivel ${data.level} · ${data.coins} monedas · ${data.crowns} coronas · ${data.wins} victorias`;
     }
-
   }else{
     $('#stats').textContent = 'Invitado (sin guardado)';
   }
 }
 
 // AUTENTICACIÓN
-$('#bin').onclick = async()=>{
 
+$('#bin').onclick = async()=>{
   if(!sb)return msg('No está configurado el inicio de sesión.');
 
   const {error} = await sb.auth.signInWithPassword({
@@ -348,7 +305,6 @@ $('#bin').onclick = async()=>{
 };
 
 $('#bre').onclick = async()=>{
-
   if(!sb)return msg('No está configurado el registro.');
 
   const u = $('#un').value.trim();
@@ -380,6 +336,7 @@ $('#out').onclick = async()=>{
 };
 
 // BOTONES DE SALAS
+
 $('#createRoom').onclick = ()=>{
   start('create');
 };
@@ -402,7 +359,115 @@ $('#leaveRoom').onclick = ()=>{
   location.reload();
 };
 
-// INICIAR CONEXIÓN
+// VARIABLES DEL JUEGO
+
+let R,S,cam;
+let others = new Map();
+let st = null;
+let myId = null;
+let yaw = 0;
+let pitch = .35;
+
+// FUNCIÓN DEL PERSONAJE
+// Ahora está fuera de setupGame para que Socket.IO pueda utilizarla.
+
+function char(id,name){
+
+  const col = new THREE.Color().setHSL(
+    (parseInt(id.slice(-4),36)%360)/360,
+    .75,
+    .6
+  );
+
+  const M = c => new THREE.MeshLambertMaterial({color:c});
+  const m = M(col);
+  const g = new THREE.Group();
+
+  const b = new THREE.Mesh(
+    new THREE.SphereGeometry(.5,16,12),
+    m
+  );
+
+  b.scale.set(1,1.2,1);
+  b.position.y = .85;
+  g.add(b);
+
+  for(const x of [-.18,.18]){
+
+    const e = new THREE.Mesh(
+      new THREE.SphereGeometry(.12,8,8),
+      M(0xffffff)
+    );
+
+    e.position.set(x,1.05,.4);
+    g.add(e);
+
+    const p = new THREE.Mesh(
+      new THREE.SphereGeometry(.06,8,8),
+      M(0)
+    );
+
+    p.position.set(x,1.05,.5);
+    g.add(p);
+  }
+
+  g.userData.legs = [-.2,.2].map(x=>{
+
+    const l = new THREE.Mesh(
+      new THREE.SphereGeometry(.17,8,8),
+      m
+    );
+
+    l.position.set(x,.2,0);
+    g.add(l);
+
+    return l;
+  });
+
+  g.userData.arms = [-.55,.55].map(x=>{
+
+    const a = new THREE.Mesh(
+      new THREE.SphereGeometry(.14,8,8),
+      m
+    );
+
+    a.position.set(x,.8,0);
+    g.add(a);
+
+    return a;
+  });
+
+  const c = document.createElement('canvas');
+  c.width = 256;
+  c.height = 64;
+
+  const ctx = c.getContext('2d');
+  ctx.font = 'bold 36px Nunito';
+  ctx.textAlign = 'center';
+  ctx.lineWidth = 8;
+  ctx.strokeStyle = '#1d1b3a';
+  ctx.strokeText(name,128,44);
+  ctx.fillStyle = '#fff';
+  ctx.fillText(name,128,44);
+
+  const sprite = new THREE.Sprite(
+    new THREE.SpriteMaterial({
+      map:new THREE.CanvasTexture(c),
+      depthTest:false
+    })
+  );
+
+  sprite.scale.set(3,.75,1);
+  sprite.position.y = 2.2;
+  g.add(sprite);
+
+  S.add(g);
+
+  return g;
+}
+
+// CONEXIÓN
+
 function start(mode,code){
 
   if(!sock){
@@ -536,10 +601,8 @@ function start(mode,code){
         $('#res').style.display = 'none';
       },7500);
     });
-
   }
 
-  // Enviar solicitud a la sala
   if(mode === 'create'){
     sock.emit('create-room');
   }
@@ -559,15 +622,8 @@ function escapeHTML(value){
   })[c]);
 }
 
-// VARIABLES DEL JUEGO
-let R,S,cam;
-let others = new Map();
-let st = null;
-let myId = null;
-let yaw = 0;
-let pitch = .35;
-
 // CREAR ESCENARIO 3D
+
 function setupGame(){
 
   R = new THREE.WebGLRenderer({antialias:true});
@@ -656,107 +712,8 @@ function setupGame(){
     return b;
   });
 
-  function label(t){
-
-    const c = document.createElement('canvas');
-    c.width = 256;
-    c.height = 64;
-
-    const x = c.getContext('2d');
-
-    x.font = 'bold 36px Nunito';
-    x.textAlign = 'center';
-    x.lineWidth = 8;
-    x.strokeStyle = '#1d1b3a';
-    x.strokeText(t,128,44);
-    x.fillStyle = '#fff';
-    x.fillText(t,128,44);
-
-    const sprite = new THREE.Sprite(
-      new THREE.SpriteMaterial({
-        map:new THREE.CanvasTexture(c),
-        depthTest:false
-      })
-    );
-
-    sprite.scale.set(3,.75,1);
-    sprite.position.y = 2.2;
-
-    return sprite;
-  }
-
-  function char(id,name){
-
-    const col = new THREE.Color().setHSL(
-      (parseInt(id.slice(-4),36)%360)/360,
-      .75,
-      .6
-    );
-
-    const m = M(col);
-    const g = new THREE.Group();
-
-    const b = new THREE.Mesh(
-      new THREE.SphereGeometry(.5,16,12),
-      m
-    );
-
-    b.scale.set(1,1.2,1);
-    b.position.y = .85;
-    g.add(b);
-
-    for(const x of [-.18,.18]){
-
-      const e = new THREE.Mesh(
-        new THREE.SphereGeometry(.12,8,8),
-        M(0xffffff)
-      );
-
-      e.position.set(x,1.05,.4);
-      g.add(e);
-
-      const p = new THREE.Mesh(
-        new THREE.SphereGeometry(.06,8,8),
-        M(0)
-      );
-
-      p.position.set(x,1.05,.5);
-      g.add(p);
-    }
-
-    g.userData.legs = [-.2,.2].map(x=>{
-
-      const l = new THREE.Mesh(
-        new THREE.SphereGeometry(.17,8,8),
-        m
-      );
-
-      l.position.set(x,.2,0);
-      g.add(l);
-
-      return l;
-    });
-
-    g.userData.arms = [-.55,.55].map(x=>{
-
-      const a = new THREE.Mesh(
-        new THREE.SphereGeometry(.14,8,8),
-        m
-      );
-
-      a.position.set(x,.8,0);
-      g.add(a);
-
-      return a;
-    });
-
-    g.add(label(name));
-    S.add(g);
-
-    return g;
-  }
-
   // CONTROLES
+
   const k = {};
 
   addEventListener('keydown',e=>{
@@ -815,6 +772,7 @@ function setupGame(){
   },33);
 
   // ANIMACIÓN
+
   (function loop(){
 
     requestAnimationFrame(loop);
