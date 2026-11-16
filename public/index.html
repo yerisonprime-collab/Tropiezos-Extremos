@@ -1,0 +1,901 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tropiezos Extremos</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Lilita+One&family=Nunito:wght@600;800&display=swap" rel="stylesheet">
+
+<style>
+:root{
+  --ink:#1d1b3a;
+  --pink:#ff4f8b;
+  --sun:#ffc93c;
+  --sky:#7fd8ff;
+  --mint:#3ddc97;
+}
+
+*{box-sizing:border-box}
+
+body{
+  margin:0;
+  overflow:hidden;
+  font-family:Nunito,system-ui,sans-serif;
+  color:var(--ink);
+  background:var(--sky);
+}
+
+canvas{
+  display:block;
+  width:100vw;
+  height:100vh;
+}
+
+#menu{
+  position:fixed;
+  inset:0;
+  z-index:5;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  background:linear-gradient(160deg,#7fd8ff,#c9a7ff 60%,#ffb3d1);
+  overflow:auto;
+  padding:15px;
+}
+
+.card{
+  background:#fff;
+  border-radius:28px;
+  padding:28px;
+  width:min(400px,94vw);
+  box-shadow:0 10px 0 var(--ink);
+  border:4px solid var(--ink);
+  display:flex;
+  flex-direction:column;
+  gap:12px;
+  text-align:center;
+}
+
+h1{
+  font:400 38px/1.1 'Lilita One';
+  margin:0;
+  color:var(--pink);
+  text-shadow:3px 3px 0 var(--ink);
+}
+
+input{
+  font:inherit;
+  padding:12px;
+  border:3px solid var(--ink);
+  border-radius:14px;
+  width:100%;
+}
+
+button{
+  font:400 21px 'Lilita One';
+  padding:12px;
+  border:3px solid var(--ink);
+  border-radius:16px;
+  background:var(--sun);
+  cursor:pointer;
+  box-shadow:0 5px 0 var(--ink);
+}
+
+button:active{
+  transform:translateY(4px);
+  box-shadow:0 1px 0 var(--ink);
+}
+
+button.p{background:var(--mint)}
+
+button:focus-visible,input:focus-visible{
+  outline:4px solid var(--pink);
+}
+
+#msg{
+  min-height:20px;
+  font-size:14px;
+  color:#b00020;
+  overflow-wrap:anywhere;
+}
+
+#stats{
+  font-weight:800;
+  font-size:14px;
+}
+
+#roomPanel{
+  position:fixed;
+  inset:0;
+  z-index:10;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:#1d1b3a88;
+  padding:15px;
+}
+
+#roomCodeDisplay{
+  font-size:43px;
+  letter-spacing:5px;
+  color:var(--pink);
+}
+
+#roomCount{
+  font-size:22px;
+  font-weight:800;
+}
+
+#roomMessage{
+  font-weight:800;
+  overflow-wrap:anywhere;
+}
+
+#hud{
+  position:fixed;
+  z-index:2;
+  top:12px;
+  left:0;
+  right:0;
+  text-align:center;
+  font:400 28px 'Lilita One';
+  color:#fff;
+  text-shadow:2px 2px 0 var(--ink);
+  pointer-events:none;
+}
+
+#res{
+  position:fixed;
+  inset:0;
+  z-index:20;
+  display:none;
+  align-items:center;
+  justify-content:center;
+  background:#1d1b3a88;
+  padding:15px;
+}
+
+#res .card{
+  max-height:80vh;
+  overflow:auto;
+}
+
+#rl{
+  font-weight:800;
+  line-height:2;
+}
+
+@media(max-width:450px){
+  .card{padding:20px}
+  h1{font-size:32px}
+  #roomCodeDisplay{font-size:34px}
+}
+</style>
+</head>
+
+<body>
+
+<!-- MENÚ PRINCIPAL -->
+<div id="menu">
+  <div class="card">
+
+    <h1>TROPIEZOS EXTREMOS</h1>
+
+    <div id="auth">
+
+      <input id="em" type="email"
+        placeholder="Correo"
+        autocomplete="email">
+
+      <input id="pw" type="password"
+        placeholder="Contraseña (mín. 6)"
+        autocomplete="current-password">
+
+      <input id="un"
+        placeholder="Nombre de usuario (al registrarte)"
+        maxlength="16">
+
+      <button class="p" id="bin">ENTRAR</button>
+      <button id="bre">REGISTRARME</button>
+      <button id="bgu" hidden>JUGAR DE INVITADO</button>
+
+    </div>
+
+    <div id="home" hidden>
+
+      <div id="stats"></div>
+
+      <h1 style="font-size:28px">¡A JUGAR!</h1>
+
+      <button class="p" id="createRoom">
+        🏠 CREAR SALA
+      </button>
+
+      <input
+        id="roomCode"
+        placeholder="ESCRIBE EL CÓDIGO"
+        maxlength="6"
+        style="text-transform:uppercase">
+
+      <button id="joinRoom">
+        🔑 UNIRSE A SALA
+      </button>
+
+      <button id="out">
+        CERRAR SESIÓN
+      </button>
+
+    </div>
+
+    <div id="msg"></div>
+
+  </div>
+</div>
+
+<!-- SALA DE ESPERA -->
+<div id="roomPanel">
+  <div class="card">
+
+    <h1>SALA DE JUEGO</h1>
+
+    <p>Comparte este código con tus amigos:</p>
+
+    <h1 id="roomCodeDisplay">------</h1>
+
+    <p id="roomCount">Jugadores: 1/10</p>
+
+    <p id="roomMessage">
+      Esperando jugadores...
+    </p>
+
+    <button class="p" id="startMatch">
+      ▶ INICIAR PARTIDA
+    </button>
+
+    <button id="leaveRoom">
+      SALIR DE LA SALA
+    </button>
+
+  </div>
+</div>
+
+<div id="hud"></div>
+
+<!-- RESULTADOS -->
+<div id="res">
+  <div class="card">
+    <h1>RESULTADOS</h1>
+    <div id="rl"></div>
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.0/dist/umd/supabase.min.js"></script>
+<script src="/socket.io/socket.io.js"></script>
+
+<script>
+const $ = s => document.querySelector(s);
+const msg = t => $('#msg').textContent = t || '';
+
+let sb = null;
+let session = null;
+let guest = null;
+let sock = null;
+let gameStarted = false;
+
+(async()=>{
+  const c = await (await fetch('/config')).json();
+
+  if(c.url){
+    sb = supabase.createClient(c.url,c.key);
+
+    const {data} = await sb.auth.getSession();
+    session = data.session;
+
+    sb.auth.onAuthStateChange((_,s)=>{
+      session = s;
+      home();
+    });
+  }else{
+    $('#bgu').hidden = false;
+  }
+
+  await home();
+
+})().catch(()=>{
+  msg('No se pudo contactar con el servidor.');
+});
+
+async function home(){
+
+  const on = !!session || !!guest;
+
+  $('#auth').hidden = on;
+  $('#home').hidden = !on;
+
+  if(!on)return;
+
+  if(session){
+
+    const {data} = await sb
+      .from('profiles')
+      .select('username,coins,crowns,wins,level')
+      .eq('id',session.user.id)
+      .single();
+
+    if(data){
+      $('#stats').textContent =
+        `${data.username} · Nivel ${data.level} · ${data.coins} monedas · ${data.crowns} coronas · ${data.wins} victorias`;
+    }
+
+  }else{
+    $('#stats').textContent = 'Invitado (sin guardado)';
+  }
+}
+
+// AUTENTICACIÓN
+$('#bin').onclick = async()=>{
+
+  if(!sb)return msg('No está configurado el inicio de sesión.');
+
+  const {error} = await sb.auth.signInWithPassword({
+    email:$('#em').value,
+    password:$('#pw').value
+  });
+
+  msg(error?.message);
+};
+
+$('#bre').onclick = async()=>{
+
+  if(!sb)return msg('No está configurado el registro.');
+
+  const u = $('#un').value.trim();
+
+  if(u.length < 3){
+    return msg('Elige un nombre de 3 a 16 caracteres.');
+  }
+
+  const {error} = await sb.auth.signUp({
+    email:$('#em').value,
+    password:$('#pw').value,
+    options:{data:{username:u}}
+  });
+
+  msg(error?.message ||
+    'Cuenta creada. Revisa tu correo si debes confirmarlo.');
+};
+
+$('#bgu').onclick = ()=>{
+  guest = 'Invitado' + Math.floor(Math.random()*999);
+  home();
+};
+
+$('#out').onclick = async()=>{
+  guest = null;
+  if(sb)await sb.auth.signOut();
+  session = null;
+  home();
+};
+
+// BOTONES DE SALAS
+$('#createRoom').onclick = ()=>{
+  start('create');
+};
+
+$('#joinRoom').onclick = ()=>{
+  const code = $('#roomCode').value.trim().toUpperCase();
+
+  if(code.length !== 6){
+    return msg('El código debe tener 6 caracteres.');
+  }
+
+  start('join',code);
+};
+
+$('#startMatch').onclick = ()=>{
+  if(sock)sock.emit('start-match');
+};
+
+$('#leaveRoom').onclick = ()=>{
+  location.reload();
+};
+
+// INICIAR CONEXIÓN
+function start(mode,code){
+
+  if(!sock){
+
+    $('#menu').style.display = 'none';
+
+    sock = io({
+      auth:{
+        token:session?.access_token,
+        name:guest
+      }
+    });
+
+    setupGame();
+
+    sock.on('connect',()=>{
+      myId = sock.id;
+    });
+
+    sock.on('connect_error',e=>{
+      $('#menu').style.display = 'flex';
+      $('#roomPanel').style.display = 'none';
+      msg(e.message);
+    });
+
+    sock.on('room-joined',data=>{
+
+      $('#menu').style.display = 'none';
+      $('#roomPanel').style.display = 'flex';
+
+      $('#roomCodeDisplay').textContent = data.code;
+      $('#roomCount').textContent =
+        `Jugadores: ${data.n}/${data.max}`;
+
+      $('#startMatch').hidden = !data.owner;
+
+      $('#roomMessage').textContent = data.owner
+        ? 'Eres el creador. Invita a tus amigos.'
+        : 'Esperando al creador de la sala...';
+    });
+
+    sock.on('room-error',error=>{
+
+      if($('#roomPanel').style.display === 'flex'){
+        $('#roomMessage').textContent = error;
+      }else{
+        $('#menu').style.display = 'flex';
+        msg(error);
+      }
+    });
+
+    sock.on('s',s=>{
+
+      st = s;
+
+      $('#roomCount').textContent =
+        `Jugadores: ${s.n}/${s.max}`;
+
+      $('#roomCodeDisplay').textContent = s.code;
+
+      if(s.ph === 'lobby'){
+
+        $('#roomPanel').style.display = 'flex';
+
+        $('#startMatch').hidden = s.ownerId !== myId;
+
+        $('#roomMessage').textContent =
+          s.ownerId === myId
+          ? 'Eres el creador. ¡Puedes iniciar la partida!'
+          : 'Esperando al creador de la sala...';
+
+      }else{
+        $('#roomPanel').style.display = 'none';
+      }
+
+      const ids = new Set();
+
+      for(const [id,n,x,y,z,r,f] of s.pl){
+
+        ids.add(id);
+
+        let o = others.get(id);
+
+        if(!o){
+          o = {
+            g:char(id,n),
+            t:new THREE.Vector3(x,y,z),
+            r,
+            px:x,
+            pz:z,
+            w:0,
+            f
+          };
+
+          o.g.position.set(x,y,z);
+          others.set(id,o);
+        }
+
+        o.t.set(x,y,z);
+        o.r = r;
+        o.f = f;
+      }
+
+      for(const [id,o] of others){
+
+        if(!ids.has(id)){
+          S.remove(o.g);
+          others.delete(id);
+        }
+      }
+    });
+
+    sock.on('results',list=>{
+
+      const me = list.find(x=>x.id===myId);
+
+      $('#rl').innerHTML = list.map(x=>
+        `<div>${x.pos || '—'}. ${escapeHTML(x.n)} (+${x.coins} monedas)</div>`
+      ).join('');
+
+      $('#res').style.display = 'flex';
+
+      if(me){
+        $('#rl').insertAdjacentHTML(
+          'afterbegin',
+          `<p>¡Terminaste en el puesto ${me.pos || 'sin clasificar'}!</p>`
+        );
+      }
+
+      setTimeout(()=>{
+        $('#res').style.display = 'none';
+      },7500);
+    });
+
+  }
+
+  // Enviar solicitud a la sala
+  if(mode === 'create'){
+    sock.emit('create-room');
+  }
+
+  if(mode === 'join'){
+    sock.emit('join-room',code);
+  }
+}
+
+function escapeHTML(value){
+  return String(value).replace(/[&<>"']/g,c=>({
+    '&':'&amp;',
+    '<':'&lt;',
+    '>':'&gt;',
+    '"':'&quot;',
+    "'":'&#39;'
+  })[c]);
+}
+
+// VARIABLES DEL JUEGO
+let R,S,cam;
+let others = new Map();
+let st = null;
+let myId = null;
+let yaw = 0;
+let pitch = .35;
+
+// CREAR ESCENARIO 3D
+function setupGame(){
+
+  R = new THREE.WebGLRenderer({antialias:true});
+
+  R.setSize(innerWidth,innerHeight);
+  R.setPixelRatio(Math.min(devicePixelRatio,2));
+
+  document.body.prepend(R.domElement);
+
+  S = new THREE.Scene();
+
+  S.background = new THREE.Color(0x7fd8ff);
+  S.fog = new THREE.Fog(0x7fd8ff,40,160);
+
+  cam = new THREE.PerspectiveCamera(
+    65,innerWidth/innerHeight,.1,300
+  );
+
+  S.add(new THREE.HemisphereLight(0xffffff,0x8866aa,.9));
+
+  const sun = new THREE.DirectionalLight(0xffffff,.8);
+  sun.position.set(20,40,10);
+  S.add(sun);
+
+  const M = c => new THREE.MeshLambertMaterial({color:c});
+
+  const floor = new THREE.Mesh(
+    new THREE.BoxGeometry(12,1,210),
+    M(0xffd6e7)
+  );
+
+  floor.position.set(0,-.5,-100);
+  S.add(floor);
+
+  for(let z=0;z>-200;z-=10){
+
+    const t = new THREE.Mesh(
+      new THREE.BoxGeometry(12,.05,2),
+      M((z/10)%2?0xff4f8b:0xffc93c)
+    );
+
+    t.position.set(0,.03,z);
+    S.add(t);
+  }
+
+  for(let z=0;z>-205;z-=20){
+
+    for(const x of [-7,7]){
+
+      const p = new THREE.Mesh(
+        new THREE.CylinderGeometry(.5,.5,4,10),
+        M(0x3ddc97)
+      );
+
+      p.position.set(x,1.5,z);
+      S.add(p);
+    }
+  }
+
+  const fin = new THREE.Mesh(
+    new THREE.BoxGeometry(12,.08,1.5),
+    M(0x1d1b3a)
+  );
+
+  fin.position.set(0,.06,-200);
+  S.add(fin);
+
+  const arch = new THREE.Mesh(
+    new THREE.BoxGeometry(14,1,1),
+    M(0xff4f8b)
+  );
+
+  arch.position.set(0,6,-200);
+  S.add(arch);
+
+  const bars = [-50,-100,-150].map(z=>{
+
+    const b = new THREE.Mesh(
+      new THREE.BoxGeometry(10,1.2,.6),
+      M(0xff4f8b)
+    );
+
+    b.position.set(0,.8,z);
+    S.add(b);
+
+    return b;
+  });
+
+  function label(t){
+
+    const c = document.createElement('canvas');
+    c.width = 256;
+    c.height = 64;
+
+    const x = c.getContext('2d');
+
+    x.font = 'bold 36px Nunito';
+    x.textAlign = 'center';
+    x.lineWidth = 8;
+    x.strokeStyle = '#1d1b3a';
+    x.strokeText(t,128,44);
+    x.fillStyle = '#fff';
+    x.fillText(t,128,44);
+
+    const sprite = new THREE.Sprite(
+      new THREE.SpriteMaterial({
+        map:new THREE.CanvasTexture(c),
+        depthTest:false
+      })
+    );
+
+    sprite.scale.set(3,.75,1);
+    sprite.position.y = 2.2;
+
+    return sprite;
+  }
+
+  function char(id,name){
+
+    const col = new THREE.Color().setHSL(
+      (parseInt(id.slice(-4),36)%360)/360,
+      .75,
+      .6
+    );
+
+    const m = M(col);
+    const g = new THREE.Group();
+
+    const b = new THREE.Mesh(
+      new THREE.SphereGeometry(.5,16,12),
+      m
+    );
+
+    b.scale.set(1,1.2,1);
+    b.position.y = .85;
+    g.add(b);
+
+    for(const x of [-.18,.18]){
+
+      const e = new THREE.Mesh(
+        new THREE.SphereGeometry(.12,8,8),
+        M(0xffffff)
+      );
+
+      e.position.set(x,1.05,.4);
+      g.add(e);
+
+      const p = new THREE.Mesh(
+        new THREE.SphereGeometry(.06,8,8),
+        M(0)
+      );
+
+      p.position.set(x,1.05,.5);
+      g.add(p);
+    }
+
+    g.userData.legs = [-.2,.2].map(x=>{
+
+      const l = new THREE.Mesh(
+        new THREE.SphereGeometry(.17,8,8),
+        m
+      );
+
+      l.position.set(x,.2,0);
+      g.add(l);
+
+      return l;
+    });
+
+    g.userData.arms = [-.55,.55].map(x=>{
+
+      const a = new THREE.Mesh(
+        new THREE.SphereGeometry(.14,8,8),
+        m
+      );
+
+      a.position.set(x,.8,0);
+      g.add(a);
+
+      return a;
+    });
+
+    g.add(label(name));
+    S.add(g);
+
+    return g;
+  }
+
+  // CONTROLES
+  const k = {};
+
+  addEventListener('keydown',e=>{
+    k[e.code] = 1;
+
+    if(e.code === 'Space')e.preventDefault();
+  });
+
+  addEventListener('keyup',e=>{
+    k[e.code] = 0;
+  });
+
+  R.domElement.onclick = ()=>{
+    R.domElement.requestPointerLock();
+  };
+
+  addEventListener('mousemove',e=>{
+
+    if(document.pointerLockElement){
+
+      yaw -= e.movementX*.003;
+
+      pitch = Math.max(
+        -.2,
+        Math.min(1.2,pitch+e.movementY*.003)
+      );
+    }
+  });
+
+  addEventListener('resize',()=>{
+
+    R.setSize(innerWidth,innerHeight);
+
+    cam.aspect = innerWidth/innerHeight;
+    cam.updateProjectionMatrix();
+  });
+
+  setInterval(()=>{
+
+    const f = (k.KeyW?1:0)-(k.KeyS?1:0);
+    const r = (k.KeyD?1:0)-(k.KeyA?1:0);
+
+    const sy = Math.sin(yaw);
+    const cy = Math.cos(yaw);
+
+    if(sock && st && st.ph === 'race'){
+
+      sock.emit('in',{
+        mx:-sy*f+cy*r,
+        mz:-cy*f-sy*r,
+        j:!!k.Space,
+        s:!!(k.ShiftLeft||k.ShiftRight)
+      });
+    }
+
+  },33);
+
+  // ANIMACIÓN
+  (function loop(){
+
+    requestAnimationFrame(loop);
+
+    if(st){
+
+      bars.forEach((b,i)=>{
+        b.rotation.y = -(st.rt*1.6+i);
+      });
+
+      for(const o of others.values()){
+
+        const g = o.g;
+
+        const moving =
+          Math.hypot(o.t.x-o.px,o.t.z-o.pz)>.02;
+
+        o.px = o.t.x;
+        o.pz = o.t.z;
+
+        g.position.lerp(o.t,.35);
+
+        let d = o.r-g.rotation.y;
+
+        d = Math.atan2(Math.sin(d),Math.cos(d));
+
+        g.rotation.y += d*.25;
+
+        o.w += moving?.45:0;
+
+        const sw = moving?Math.sin(o.w)*.25:0;
+
+        g.userData.legs[0].position.z = sw;
+        g.userData.legs[1].position.z = -sw;
+
+        g.userData.arms[0].position.z = -sw;
+        g.userData.arms[1].position.z = sw;
+
+        g.userData.arms[0].position.y =
+        g.userData.arms[1].position.y = o.t.y>.1?1.1:.8;
+      }
+
+      const me = others.get(myId);
+
+      if(me){
+
+        const p = me.g.position;
+
+        cam.position.lerp(
+          new THREE.Vector3(
+            p.x+Math.sin(yaw)*Math.cos(pitch)*9,
+            p.y+1.5+Math.sin(pitch)*9,
+            p.z+Math.cos(yaw)*Math.cos(pitch)*9
+          ),
+          .2
+        );
+
+        cam.lookAt(p.x,p.y+1.2,p.z);
+
+        const rank =
+          [...others.values()].filter(o=>o.t.z<p.z-.01).length+1;
+
+        const hud = $('#hud');
+
+        hud.textContent =
+          st.ph === 'lobby'
+          ? `Esperando jugadores (${st.n}/10)…`
+          : st.ph === 'countdown'
+          ? `Empieza en ${st.cd} · ${st.n} jugadores`
+          : st.ph === 'race'
+          ? (me.f?`¡META! Puesto ${me.f}`:
+             `Puesto ${rank}/${st.n} · ${Math.max(0,90-st.rt|0)}s`)
+          : 'Fin de la carrera';
+      }
+    }
+
+    R.render(S,cam);
+
+  })();
+
+}
+</script>
+</body>
+</html>
